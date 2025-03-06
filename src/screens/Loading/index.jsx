@@ -1,8 +1,15 @@
 import { View, Text, SafeAreaView, StyleSheet } from 'react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PacmanIndicator } from 'react-native-indicators';
+import { useNavigation } from '@react-navigation/native';
 
 const Loading = () => {
+  const navigation=useNavigation();
+  useEffect(()=> {
+    setTimeout(() => {
+      navigation.navigate('Welcome');
+    }, 3000); // 3 saniye sonra ana sayfaya yönlendirilir.
+  })
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

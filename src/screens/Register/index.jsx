@@ -4,6 +4,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView } fro
 import Icon from 'react-native-vector-icons/Feather';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
+import axios from 'axios';
+import { Root, Popup, Toast } from 'popup-ui';
 
 const Register = () => {
     const [isSecure, setIsSecure] = useState(true);
@@ -19,120 +21,184 @@ const Register = () => {
         setIsConfirmSecure(!isConfirmSecure);
     };
 
-    const handleRegister = (values) => {
-        if (values.password !== values.confirmPassword) {
-            alert('Şifreler uyuşmuyor!');
-        } else {
-            // Register işlemi burada olacak
-            console.log('User Registered', values);
+    const handleRegister = async (values) => {
+        try {
+            // API isteği
+            const response = await axios.post('http://10.0.2.2:5000/api/auth/register', {
+                username: values.username,
+                email: values.email,
+                password: values.password,
+            });
+
+            // API yanıtında status code kontrolü ve response data kontrolü
+            if (response.status === 201) {
+                // Başarılı kayıt durumu
+                Popup.show({
+                    type: 'Success',
+                    title: 'Kayıt Başarılı',
+                    textBody: 'Kayıt işleminiz başarılı!',
+                    buttonText: 'Tamam',
+                    callback: () => {
+                        Popup.hide();
+                        navigation.navigate('Login');
+                    }
+                });
+            } else if (response.data && response.data.error) {
+                // Eğer API'den gelen response içinde error varsa
+                Toast.show({
+                    title: 'Kayıt Hatası',
+                    color: '#c1121f',
+                    text: response.data.error, // API'den dönen hata mesajını burada kullanıyoruz
+                    timing: 4000,
+                });
+            } else {
+                // Başka bir hata durumu
+                Toast.show({
+                    title: 'Kayıt Hatası',
+                    color: '#d62828',
+                    text: 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.',
+                    timing: 3000,
+                });
+            }
+        } catch (error) {
+            // API isteği sırasında hata olursa
+            console.log('Kayıt hatası:', error);
+            Toast.show({
+                title: 'Kayıt Hatası',
+                color: '#d62828',
+                text: 'Bu kullanıcı adı veya eposta kullanılıyor.',
+                timing: 3000,
+            });
         }
     };
 
+
+    const closePopup = () => {
+        setShowPopup(false);
+        if (popupType === 'success') {
+            navigation.navigate('Login'); // Başarı durumunda login ekranına yönlendir
+        }
+    };
+
+
     return (
-        <SafeAreaView style={styles.container}>
-            <Formik
-                initialValues={{ username: '', email: '', password: '', confirmPassword: '' }}
-                validationSchema={Yup.object().shape({
-                    username: Yup.string().required('Kullanıcı adı gerekli').min(6, 'Kullanıcı adı 6 karakterden az olamaz'),
-                    email: Yup.string().required('E-posta gerekli').email('Geçersiz e-posta adresi'),
-                    password: Yup.string().required('Şifre gerekli').min(8, 'Şifre minimum 8 karakter olmalı').max(16, 'Şifre maksimum 16 karakter olmalı'),
-                    confirmPassword: Yup.string()
-                        .required('Şifreyi doğrulamak gerekli')
-                        .oneOf([Yup.ref('password'), null], 'Şifreler uyuşmuyor'),
-                })}
-                onSubmit={handleRegister}
-            >
-                {({ values, touched, errors, handleChange, handleBlur, handleSubmit, isValid }) => (
-                    <View style={styles.content}>
-                        <Text style={styles.title}>Sons of Süleymaniye</Text>
-                        <Text style={styles.miniTitle}>Üye Ol</Text>
+        <Root>
+            <SafeAreaView style={styles.container}>
+                <Formik
+                    initialValues={{ username: '', email: '', password: '', confirmPassword: '' }}
+                    validationSchema={Yup.object().shape({
+                        username: Yup.string().required('Kullanıcı adı gerekli').min(6, 'Kullanıcı adı 6 karakterden az olamaz'),
+                        email: Yup.string().required('E-posta gerekli').email('Geçersiz e-posta adresi'),
+                        password: Yup.string().required('Şifre gerekli').min(8, 'Şifre minimum 8 karakter olmalı').max(16, 'Şifre maksimum 16 karakter olmalı'),
+                        confirmPassword: Yup.string()
+                            .required('Şifre doğrulama gerekli')
+                            .oneOf([Yup.ref('password'), null], 'Şifreler uyuşmuyor'),
+                    })}
+                    onSubmit={handleRegister}
+                >
+                    {({ values, touched, errors, handleChange, handleBlur, handleSubmit, isValid }) => (
+                        <View style={styles.content}>
+                            <Text style={styles.title}>Sons of Süleymaniye</Text>
+                            <Text style={styles.miniTitle}>Üye Ol</Text>
 
-                        {/* Kullanıcı Adı */}
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Kullanıcı Adı"
-                            placeholderTextColor="#606C38"
-                            value={values.username}
-                            onChangeText={handleChange('username')}
-                            onBlur={handleBlur('username')}
-                        />
-                        {touched.username && errors.username && <Text style={styles.error}>{errors.username}</Text>}
-
-                        {/* E-posta */}
-                        <TextInput
-                            style={styles.input}
-                            placeholder="E-posta"
-                            placeholderTextColor="#606C38"
-                            keyboardType="email-address"
-                            value={values.email}
-                            onChangeText={handleChange('email')}
-                            onBlur={handleBlur('email')}
-                        />
-                        {touched.email && errors.email && <Text style={styles.error}>{errors.email}</Text>}
-
-                        {/* Şifre */}
-                        <View style={styles.inputContainer}>
+                            {/* Kullanıcı Adı */}
                             <TextInput
                                 style={styles.input}
-                                placeholder="Şifre"
+                                placeholder="Kullanıcı Adı"
                                 placeholderTextColor="#606C38"
-                                secureTextEntry={isSecure}
-                                value={values.password}
-                                onChangeText={handleChange('password')}
-                                onBlur={handleBlur('password')}
+                                value={values.username}
+                                onChangeText={handleChange('username')}
+                                onBlur={handleBlur('username')}
                             />
-                            <Icon
-                                onPress={togglePasswordVisibility}
-                                size={24}
-                                color="#606C38"
-                                name={isSecure ? "eye-off" : "eye"}
-                                style={styles.icon}
-                            />
-                        </View>
-                        {touched.password && errors.password && <Text style={styles.error}>{errors.password}</Text>}
+                            {touched.username && errors.username && <Text style={styles.error}>{errors.username}</Text>}
 
-                        {/* Şifre Doğrulama */}
-                        <View style={styles.inputContainer}>
+                            {/* E-posta */}
                             <TextInput
                                 style={styles.input}
-                                placeholder="Şifreyi Doğrula"
+                                placeholder="E-posta"
                                 placeholderTextColor="#606C38"
-                                secureTextEntry={isConfirmSecure}
-                                value={values.confirmPassword}
-                                onChangeText={handleChange('confirmPassword')}
-                                onBlur={handleBlur('confirmPassword')}
+                                keyboardType="email-address"
+                                value={values.email}
+                                onChangeText={handleChange('email')}
+                                onBlur={handleBlur('email')}
                             />
-                            <Icon
-                                onPress={toggleConfirmPasswordVisibility}
-                                size={24}
-                                color="#606C38"
-                                name={isConfirmSecure ? "eye-off" : "eye"}
-                                style={styles.icon}
-                            />
+                            {touched.email && errors.email && <Text style={styles.error}>{errors.email}</Text>}
+
+                            {/* Şifre */}
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Şifre"
+                                    placeholderTextColor="#606C38"
+                                    secureTextEntry={isSecure}
+                                    value={values.password}
+                                    onChangeText={handleChange('password')}
+                                    onBlur={handleBlur('password')}
+                                />
+                                <Icon
+                                    onPress={togglePasswordVisibility}
+                                    size={24}
+                                    color="#606C38"
+                                    name={isSecure ? "eye-off" : "eye"}
+                                    style={styles.icon}
+                                />
+                            </View>
+                            {touched.password && errors.password && <Text style={styles.error}>{errors.password}</Text>}
+
+                            {/* Şifre Doğrulama */}
+                            <View style={styles.inputContainer}>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Şifreyi Doğrula"
+                                    placeholderTextColor="#606C38"
+                                    secureTextEntry={isConfirmSecure}
+                                    value={values.confirmPassword}
+                                    onChangeText={handleChange('confirmPassword')}
+                                    onBlur={handleBlur('confirmPassword')}
+                                />
+                                <Icon
+                                    onPress={toggleConfirmPasswordVisibility}
+                                    size={24}
+                                    color="#606C38"
+                                    name={isConfirmSecure ? "eye-off" : "eye"}
+                                    style={styles.icon}
+                                />
+                            </View>
+                            {touched.confirmPassword && errors.confirmPassword && <Text style={styles.error}>{errors.confirmPassword}</Text>}
+
+                            {/* Kayıt Ol Butonu */}
+                            <TouchableOpacity
+                                disabled={!isValid}
+                                style={[styles.button, !isValid && styles.disabledButton]}
+                                onPress={handleSubmit}
+                            >
+                                <Text style={styles.buttonText}>Üye Ol</Text>
+                            </TouchableOpacity>
+
+                            {/* Zaten Hesabınız Var mı? Linki */}
+                            <Text style={styles.footer}>
+                                Zaten hesabınız var mı? <Text onPress={() => navigation.navigate("Login")} style={styles.register}>Giriş Yap</Text>
+                            </Text>
                         </View>
-                        {touched.confirmPassword && errors.confirmPassword && <Text style={styles.error}>{errors.confirmPassword}</Text>}
-
-                        {/* Kayıt Ol Butonu */}
-                        <TouchableOpacity
-                            disabled={!isValid}
-                            style={[
-                                styles.button, !isValid && styles.disabledButton
-                            ]} onPress={handleSubmit}>
-                            <Text style={styles.buttonText}>Üye Ol</Text>
-                        </TouchableOpacity>
-
-                        {/* Zaten Hesabınız Var mı? Linki */}
-                        <Text style={styles.footer}>
-                            Zaten hesabınız var mı? <Text onPress={() => navigation.navigate("Login")} style={styles.register}>Giriş Yap</Text>
-                        </Text>
-                    </View>
-                )}
-            </Formik>
-        </SafeAreaView>
+                    )}
+                </Formik>
+            </SafeAreaView>
+        </Root>
     );
 };
 
 const styles = StyleSheet.create({
+    popupContainer: {
+        position: 'absolute', // Ekranın üst kısmında, tüm ekranı kaplamalı
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Koyu arka plan
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999, // Popup'ı ön planda tutmak için yüksek zIndex
+    },
     container: {
         flex: 1,
         backgroundColor: '#FEFAE0', // Arkaplan rengi
