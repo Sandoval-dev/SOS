@@ -1,30 +1,49 @@
 import { useNavigation } from '@react-navigation/native';
 import { Formik } from 'formik';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import * as Yup from 'yup';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Root, Popup, Toast } from 'popup-ui';
 
 const Login = () => {
     const [isSecure, setIsSecure] = useState(true);
-
+    const [loading, setLoading] = useState(true);  // Sayfa açıldığında kontrol için
     const navigation = useNavigation();
+
+    useEffect(() => {
+        // Kullanıcının daha önce giriş yapıp yapmadığını kontrol et
+        const checkLoginStatus = async () => {
+            try {
+                const token = await AsyncStorage.getItem('userToken');
+                if (token) {
+                    // Token varsa direkt Loading sayfasına yönlendir
+                    navigation.replace('Loading');
+                }
+            } catch (error) {
+                console.log('Token kontrol hatası:', error);
+            } finally {
+                setLoading(false); // Kontrol tamamlandı
+            }
+        };
+
+        checkLoginStatus();
+    }, []);
+
     const togglePasswordVisibility = () => {
         setIsSecure(!isSecure);
     };
 
     const handleLogin = async (values) => {
         try {
-            // Show toast before attempting login
             Toast.show({
                 title: 'Lütfen Bekleyin...',
-                color: '#dda15e', // Toast color while waiting
+                color: '#dda15e',
                 timing: 2000,
             });
 
-            // Wait for a few seconds before making the request (simulating processing)
             setTimeout(async () => {
                 try {
                     const response = await axios.post('http://10.0.2.2:5000/api/auth/login', {
@@ -33,22 +52,24 @@ const Login = () => {
                     });
 
                     if (response.status === 200 && response.data.token) {
-                        // Giriş başarılıysa, token'ı sakla (AsyncStorage veya başka bir çözüm)
-                        // await AsyncStorage.setItem('userToken', response.data.token);
+                        // Token'ı AsyncStorage'e kaydet
+                        await AsyncStorage.setItem('userToken', response.data.token);
+                        console.log('Token Kaydedildi:', response.data.token);  // Debugging için ekleyin
+
                         Toast.show({
                             title: 'Giriş Başarılı',
-                            color: '#4f772d', // Success color
+                            color: '#4f772d',
                             timing: 2000,
                         });
-                        // Ana ekrana yönlendirme
+
                         setTimeout(() => {
-                            navigation.navigate('Loading');
-                        }, 3000);
+                            navigation.replace('Loading'); // Ana sayfaya yönlendir
+                        }, 2000);
                     } else {
                         Toast.show({
                             title: 'Giriş Başarısız',
                             text: 'Kullanıcı adı veya şifre hatalı',
-                            color: '#d62828', // Error color
+                            color: '#d62828',
                             timing: 3000,
                         });
                     }
@@ -60,7 +81,7 @@ const Login = () => {
                         timing: 3000,
                     });
                 }
-            }, 2500); // Simulate waiting for 3 seconds
+            }, 2500);
         } catch (error) {
             Toast.show({
                 title: 'Giriş Başarısız',
@@ -71,6 +92,14 @@ const Login = () => {
         }
     };
 
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#BC6C25" />
+            </SafeAreaView>
+        );
+    }
+
     return (
         <Root>
             <SafeAreaView style={styles.container}>
@@ -80,14 +109,13 @@ const Login = () => {
                         username: Yup.string().required('Kullanıcı adı gerekli').min(6, 'Kullanıcı adı 6 karakterden az olamaz'),
                         password: Yup.string().required('Şifre gerekli').min(8, 'Şifre minimum 8 karakter olmalı').max(16, 'Şifre maksimum 16 karakter olmalı'),
                     })}
-                    onSubmit={handleLogin}  // HandleLogin fonksiyonunu Formik'e bağladık
+                    onSubmit={handleLogin}
                 >
                     {({ values, touched, errors, handleChange, handleBlur, handleSubmit, isValid }) => (
                         <View style={styles.content}>
                             <Text style={styles.title}>Sons of Süleymaniye</Text>
                             <Text style={styles.miniTitle}>Giriş Yap</Text>
 
-                            {/* Kullanıcı Adı */}
                             <TextInput
                                 style={styles.input}
                                 placeholder="Kullanıcı Adı"
@@ -98,7 +126,6 @@ const Login = () => {
                             />
                             {touched.username && errors.username && <Text style={styles.error}>{errors.username}</Text>}
 
-                            {/* Şifre */}
                             <View style={styles.inputContainer}>
                                 <TextInput
                                     style={styles.input}
@@ -119,7 +146,6 @@ const Login = () => {
                                 />
                             </View>
 
-                            {/* Giriş Butonu */}
                             <TouchableOpacity
                                 style={[styles.button, !isValid && styles.disabledButton]}
                                 onPress={handleSubmit}
@@ -128,7 +154,6 @@ const Login = () => {
                                 <Text style={styles.buttonText}>Giriş Yap</Text>
                             </TouchableOpacity>
 
-                            {/* Kayıt Ol Linki */}
                             <Text style={styles.footer}>
                                 Hesabınız yok mu? <Text onPress={() => navigation.navigate("Register")} style={styles.register}>Kayıt Ol</Text>
                             </Text>
@@ -143,9 +168,15 @@ const Login = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FEFAE0', // Arkaplan rengi
+        backgroundColor: '#FEFAE0',
         justifyContent: 'center',
         padding: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FEFAE0',
     },
     content: {
         alignItems: 'center',
@@ -154,26 +185,26 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#283618', // Başlık rengi
+        color: '#283618',
         marginBottom: 10,
         textAlign: 'center',
     },
     miniTitle: {
         fontSize: 16,
-        color: '#283618', // Alt başlık rengi
+        color: '#283618',
         marginBottom: 20,
     },
     input: {
         width: '100%',
         height: 50,
-        borderColor: '#DDA15E', // Koyu altın sarısı
+        borderColor: '#DDA15E',
         borderWidth: 1,
         borderRadius: 8,
         paddingHorizontal: 15,
         marginBottom: 20,
         fontSize: 16,
-        color: '#283618', // Koyu metin rengi
-        backgroundColor: '#FEFAE0', // Arkaplan rengi
+        color: '#283618',
+        backgroundColor: '#FEFAE0',
     },
     inputContainer: {
         width: '100%',
@@ -187,18 +218,18 @@ const styles = StyleSheet.create({
     button: {
         width: '100%',
         height: 50,
-        backgroundColor: '#BC6C25', // Kahverengi tonları
+        backgroundColor: '#BC6C25',
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 8,
         marginBottom: 20,
     },
     disabledButton: {
-        backgroundColor: '#ccd5ae', // Disabled button color
+        backgroundColor: '#ccd5ae',
     },
     buttonText: {
         fontSize: 18,
-        color: '#FEFAE0', // Buton metni rengi
+        color: '#FEFAE0',
         fontWeight: 'bold',
     },
     footer: {
@@ -207,16 +238,16 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     register: {
-        color: '#DDA15E', // Kayıt ol metni rengi
+        color: '#DDA15E',
         fontWeight: 'bold',
-        textDecorationLine: 'underline', // Alt çizgi ekledim
+        textDecorationLine: 'underline',
     },
     error: {
         fontSize: 12,
-        color: '#FF5252', // Hatalı giriş mesajı rengi
+        color: '#FF5252',
         marginBottom: 10,
-        alignSelf: 'flex-start', // Sol hizalama
-        marginLeft: 15, // Sağ taraftan boşluk ekledim
+        alignSelf: 'flex-start',
+        marginLeft: 15,
     },
 });
 
